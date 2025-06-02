@@ -40,7 +40,7 @@ services:
              --default-artifact-root /mlflow/artifacts 
              --host 0.0.0.0 
              --port 5000"
-
+             
   streamlit:
     build:
       context: .
@@ -58,7 +58,7 @@ services:
       - postgres
       - mlflow
     command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
-	
+    
   pgadmin:
     image: dpage/pgadmin4
     restart: unless-stopped
@@ -67,7 +67,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports: ["8080:80"]
     volumes: [pgadmin_data:/var/lib/pgadmin]
-
+    
   portainer:
     image: portainer/portainer-ce
     restart: unless-stopped
