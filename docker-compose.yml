@@ -59,8 +59,6 @@ services:
       - mlflow
     command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 	
-	
-	# ---------- pgAdmin ----------
   pgadmin:
     image: dpage/pgadmin4
     restart: unless-stopped
@@ -70,7 +68,6 @@ services:
     ports: ["8080:80"]
     volumes: [pgadmin_data:/var/lib/pgadmin]
 
-    # ---------- Portainer ----------
   portainer:
     image: portainer/portainer-ce
     restart: unless-stopped
