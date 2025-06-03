@@ -38,7 +38,7 @@ ENV PATH="/home/app/.local/bin:${PATH}"
 RUN mkdir -p uploads models .streamlit
 
 # Copie la configuration Streamlit
-COPY --chown=app:app .streamlit/config.toml .streamlit/
+COPY --chown=app:app config.toml .streamlit/
 
 # Copie le code de l'application
 COPY --chown=app:app . .

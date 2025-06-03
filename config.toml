@@ -1,0 +1,43 @@
+[global]
+# Désactive les avertissements de développement
+developmentMode = false
+showWarningOnDirectExecution = false
+
+[server]
+# Configuration du serveur
+port = 8501
+address = "0.0.0.0"
+baseUrlPath = ""
+enableCORS = false
+enableXsrfProtection = true
+maxUploadSize = 200
+maxMessageSize = 200
+enableWebsocketCompression = false
+allowRunOnSave = true
+
+[browser]
+# Désactive l'ouverture automatique du navigateur
+gatherUsageStats = false
+
+[client]
+# Cache et performance
+caching = true
+displayEnabled = true
+showErrorDetails = true
+
+[runner]
+# Configuration d'exécution
+magicEnabled = true
+installTracer = false
+fixMatplotlib = true
+postScriptGC = true
+fastReruns = true
+
+[logger]
+# Configuration des logs
+level = "info"
+messageFormat = "%(asctime)s %(message)s"
+
+[deprecation]
+# Désactive les avertissements de dépréciation
+showPyplotGlobalUse = false
