@@ -1,0 +1,40 @@
+# Version simplifiée utilisant l'image MLflow officielle
+FROM ghcr.io/mlflow/mlflow:v2.8.1
+
+# Switch to root to install additional packages
+USER root
+
+# Install PostgreSQL client and other dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install additional Python packages
+RUN pip install --no-cache-dir \
+    psycopg2-binary==2.9.9 \
+    alembic==1.12.1
+
+# Create mlflow user and directories
+RUN useradd --create-home --shell /bin/bash mlflow || true
+RUN mkdir -p /home/mlflow/mlruns /home/mlflow/artifacts
+RUN chown -R mlflow:mlflow /home/mlflow
+
+# Switch back to mlflow user
+USER mlflow
+WORKDIR /home/mlflow
+
+# Expose port
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+# Start MLflow server
+CMD ["mlflow", "server", \
+     "--backend-store-uri", "postgresql://yolo_user:yolo_password@postgres:5432/yolo_db", \
+     "--default-artifact-root", "/home/mlflow/artifacts", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--serve-artifacts"]

@@ -1,0 +1,54 @@
+# Version la plus robuste pour MLflow
+FROM python:3.10-slim
+
+# Variables d'environnement
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Installe les dépendances système en une seule couche
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    gcc \
+    g++ \
+    libpq-dev \
+    libpq5 \
+    python3-dev \
+    pkg-config \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Met à jour pip et les outils de build
+RUN python -m pip install --upgrade pip setuptools wheel
+
+# Installe les dépendances Python une par une pour debug
+RUN pip install --no-cache-dir psycopg2-binary==2.9.9
+RUN pip install --no-cache-dir alembic==1.12.1  
+RUN pip install --no-cache-dir boto3==1.29.162
+RUN pip install --no-cache-dir mlflow==2.8.1
+
+# Crée l'utilisateur mlflow
+RUN useradd --create-home --shell /bin/bash mlflow
+
+# Crée les répertoires et ajuste les permissions
+RUN mkdir -p /home/mlflow/mlruns /home/mlflow/artifacts \
+    && chown -R mlflow:mlflow /home/mlflow
+
+# Change vers l'utilisateur mlflow
+USER mlflow
+WORKDIR /home/mlflow
+
+# Expose le port
+EXPOSE 5000
+
+# Test de connectivité
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+# Commande de démarrage avec toutes les options
+CMD ["sh", "-c", "mlflow server --backend-store-uri postgresql://yolo_user:yolo_password@postgres:5432/yolo_db --default-artifact-root /home/mlflow/artifacts --host 0.0.0.0 --port 5000 --serve-artifacts --gunicorn-opts '--timeout 60 --keep-alive 2 --max-requests 1000'"]
