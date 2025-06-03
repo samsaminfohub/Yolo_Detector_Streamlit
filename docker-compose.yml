@@ -1,84 +1,119 @@
 version: '3.8'
 
 services:
+  # Base de données PostgreSQL
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: yolo_postgres
     environment:
-      POSTGRES_DB: yolo_db
-      POSTGRES_USER: yolo_user
-      POSTGRES_PASSWORD: yolo_password
-    ports:
-      - "5432:5432"
+      - POSTGRES_DB=yolo_db
+      - POSTGRES_USER=yolo_user
+      - POSTGRES_PASSWORD=yolo_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U yolo_user -d yolo_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - yolo_network
 
+  # MLflow Tracking Server
   mlflow:
     build:
       context: .
       dockerfile: Dockerfile.mlflow
     container_name: yolo_mlflow
-    ports:
-      - "5000:5000"
     environment:
       - MLFLOW_BACKEND_STORE_URI=postgresql://yolo_user:yolo_password@postgres:5432/yolo_db
-      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/home/mlflow/artifacts
     volumes:
-      - mlflow_artifacts:/mlflow/artifacts
+      - mlflow_artifacts:/home/mlflow/artifacts
+    ports:
+      - "5000:5000"
     depends_on:
       postgres:
         condition: service_healthy
-    command: >
-      sh -c "mlflow server 
-             --backend-store-uri postgresql://yolo_user:yolo_password@postgres:5432/yolo_db 
-             --default-artifact-root /mlflow/artifacts 
-             --host 0.0.0.0 
-             --port 5000"
-             
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - yolo_network
+
+  # Application Streamlit
   streamlit:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
     container_name: yolo_streamlit
-    ports:
-      - "8501:8501"
     environment:
       - DATABASE_URL=postgresql://yolo_user:yolo_password@postgres:5432/yolo_db
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONPATH=/home/app
     volumes:
-      - ./uploads:/app/uploads
-      - ./models:/app/models
+      - ./uploads:/home/app/uploads
+      - ./models:/home/app/models
+      - streamlit_cache:/home/app/.streamlit
+    ports:
+      - "8501:8501"
     depends_on:
-      - postgres
-      - mlflow
-    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
-    
-  pgadmin:
-    image: dpage/pgadmin4
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports: ["8080:80"]
-    volumes: [pgadmin_data:/var/lib/pgadmin]
-    
-  portainer:
-    image: portainer/portainer-ce
-    restart: unless-stopped
-    command: -H unix:///var/run/docker.sock
-    ports: ["9000:9000"]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
+    networks:
+      - yolo_network
 
+  # Service Redis pour le cache (optionnel mais recommandé)
+  redis:
+    image: redis:7-alpine
+    container_name: yolo_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - yolo_network
+
+# Volumes persistants
 volumes:
   postgres_data:
+    driver: local
   mlflow_artifacts:
-  pgadmin_data:
-  portainer_data:
+    driver: local
+  streamlit_cache:
+    driver: local
+  redis_data:
+    driver: local
+
+# Réseau personnalisé
+networks:
+  yolo_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

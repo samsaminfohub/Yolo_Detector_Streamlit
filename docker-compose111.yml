@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: yolo_postgres
+    environment:
+      POSTGRES_DB: yolo_db
+      POSTGRES_USER: yolo_user
+      POSTGRES_PASSWORD: yolo_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yolo_user -d yolo_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: yolo_mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://yolo_user:yolo_password@postgres:5432/yolo_db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "mlflow server 
+             --backend-store-uri postgresql://yolo_user:yolo_password@postgres:5432/yolo_db 
+             --default-artifact-root /mlflow/artifacts 
+             --host 0.0.0.0 
+             --port 5000"
+             
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: yolo_streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=postgresql://yolo_user:yolo_password@postgres:5432/yolo_db
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./uploads:/app/uploads
+      - ./models:/app/models
+    depends_on:
+      - postgres
+      - mlflow
+    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+    
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports: ["8080:80"]
+    volumes: [pgadmin_data:/var/lib/pgadmin]
+    
+  portainer:
+    image: portainer/portainer-ce
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports: ["9000:9000"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+volumes:
+  postgres_data:
+  mlflow_artifacts:
+  pgadmin_data:
+  portainer_data:

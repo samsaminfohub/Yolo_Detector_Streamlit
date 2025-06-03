@@ -1,0 +1,77 @@
+# Fichiers Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environnements virtuels
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.log
+logs/
+
+# Données et uploads (à exclure du build mais pas du volume)
+uploads/*
+!uploads/.gitkeep
+models/*
+!models/.gitkeep
+
+# MLflow artifacts locaux
+mlruns/
+mlartifacts/
+
+# Configuration locale
+.env
+.env.local
+config.local.toml
+
+# Tests et CI
+.github/
+.gitlab-ci.yml
+tests/
+*_test.py
+test_*.py
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Backup files
+*.bak
+*.backup

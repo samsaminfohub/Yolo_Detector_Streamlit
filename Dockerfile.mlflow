@@ -1,28 +1,46 @@
-FROM python:3.9
+# Image MLflow officielle basée sur Python
+FROM python:3.10-slim
 
-WORKDIR /mlflow
+# Variables d'environnement
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-# Installation des dépendances système
+# Installe les dépendances système
 RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
+    build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation de MLflow et des dépendances
-RUN pip install --no-cache-dir \
-    mlflow[extras]==2.8.1 \
-    psycopg2-binary \
-    boto3
+# Installe MLflow et les dépendances nécessaires
+RUN pip install \
+    mlflow==2.8.1 \
+    psycopg2-binary==2.9.9 \
+    boto3==1.29.162 \
+    pymysql==1.1.0
 
-# Créer le dossier pour les artifacts
-RUN mkdir -p /mlflow/artifacts
+# Crée un utilisateur non-root
+RUN useradd --create-home --shell /bin/bash mlflow
+USER mlflow
+WORKDIR /home/mlflow
 
-# Exposer le port
+# Crée les répertoires nécessaires
+RUN mkdir -p /home/mlflow/mlruns /home/mlflow/artifacts
+
+# Expose le port MLflow
 EXPOSE 5000
 
-# Variables d'environnement par défaut
-ENV MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
-ENV MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+# Commande de santé
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
 
-# Commande par défaut
-CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000"]
+# Variables d'environnement pour MLflow
+ENV MLFLOW_BACKEND_STORE_URI=postgresql://yolo_user:yolo_password@postgres:5432/yolo_db
+ENV MLFLOW_DEFAULT_ARTIFACT_ROOT=/home/mlflow/artifacts
+
+# Commande de démarrage
+CMD ["mlflow", "server", \
+     "--backend-store-uri", "${MLFLOW_BACKEND_STORE_URI}", \
+     "--default-artifact-root", "${MLFLOW_DEFAULT_ARTIFACT_ROOT}", \
+     "--host", "0.0.0.0", \
+     "--port", "5000"]

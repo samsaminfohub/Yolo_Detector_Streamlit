@@ -1,34 +1,53 @@
-FROM python:3.9
+# Utilise une image Python optimisée
+FROM python:3.10-slim
 
-WORKDIR /app
+# Variables d'environnement pour optimiser Python
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Installation des dépendances système
+# Installe les dépendances système nécessaires
 RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    libgl1-mesa-glx \
+    libgthread-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copier les fichiers de requirements
-COPY requirements.txt .
+# Crée un utilisateur non-root
+RUN useradd --create-home --shell /bin/bash app
+USER app
+WORKDIR /home/app
 
-# Installation des dépendances Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Copie les requirements et installe les dépendances Python
+COPY --chown=app:app requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-# Copier le code de l'application
-COPY . .
+# Ajoute le répertoire local de pip au PATH
+ENV PATH="/home/app/.local/bin:${PATH}"
 
-# Créer les dossiers nécessaires
-RUN mkdir -p uploads models
+# Crée les répertoires nécessaires
+RUN mkdir -p uploads models .streamlit
 
-# Exposer le port
+# Copie la configuration Streamlit
+COPY --chown=app:app .streamlit/config.toml .streamlit/
+
+# Copie le code de l'application
+COPY --chown=app:app . .
+
+# Expose le port Streamlit
 EXPOSE 8501
 
-# Commande par défaut
+# Commande de santé pour vérifier le conteneur
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+
+# Commande de démarrage
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
