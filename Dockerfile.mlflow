@@ -6,18 +6,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Installe les dépendances système
+# Installe les dépendances système nécessaires
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    gcc \
+    g++ \
+    libpq-dev \
+    python3-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Installe MLflow et les dépendances nécessaires
-RUN pip install \
+# Met à jour pip et installe les dépendances Python avec gestion d'erreur
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
     mlflow==2.8.1 \
     psycopg2-binary==2.9.9 \
     boto3==1.29.162 \
-    pymysql==1.1.0
+    pymysql==1.1.0 \
+    alembic==1.12.1
 
 # Crée un utilisateur non-root
 RUN useradd --create-home --shell /bin/bash mlflow
